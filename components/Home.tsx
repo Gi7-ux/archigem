@@ -7,7 +7,7 @@ import {useRef, useState} from 'react';
 import {A0_HEIGHT_PX, A0_WIDTH_PX} from '../constants';
 import {useCanvas} from '../hooks/useCanvas';
 import {generateImageFromPlan} from '../lib/gemini';
-import {drawOverlays} from '../lib/utils';
+import {drawOverlays, exportToPdf} from '../lib/utils';
 import {Canvas} from './Canvas';
 import {ErrorModal} from './ErrorModal';
 import {PromptForm} from './PromptForm';
@@ -144,56 +144,7 @@ export default function Home() {
       link.href = canvas.toDataURL('image/png');
       link.click();
     } else if (format === 'pdf') {
-      // For PDF, create an A0-sized PDF and fit the image within it
-      const isLandscape = imgWidth > imgHeight;
-      const orientation = isLandscape ? 'l' : 'p';
-
-      // Create a canvas with the original image dimensions to draw on
-      const canvas = document.createElement('canvas');
-      canvas.width = imgWidth;
-      canvas.height = imgHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(baseImageElement, 0, 0);
-      drawOverlays(ctx, overlays, 1); // Draw overlays at original scale
-
-      const imgData = canvas.toDataURL('image/png');
-
-      // Create a new jsPDF instance with A0 format
-      const doc = new jsPDF({
-        orientation,
-        unit: 'mm',
-        format: 'a0',
-      });
-
-      const pdfWidth = doc.internal.pageSize.getWidth();
-      const pdfHeight = doc.internal.pageSize.getHeight();
-
-      // Calculate the aspect ratio of the image and the PDF page
-      const imgAspectRatio = imgWidth / imgHeight;
-      const pdfAspectRatio = pdfWidth / pdfHeight;
-
-      let renderWidth, renderHeight;
-
-      if (imgAspectRatio > pdfAspectRatio) {
-        // Image is wider than the PDF page, so fit to width
-        renderWidth = pdfWidth;
-        renderHeight = renderWidth / imgAspectRatio;
-      } else {
-        // Image is taller than or same aspect as the PDF page, so fit to height
-        renderHeight = pdfHeight;
-        renderWidth = renderHeight * imgAspectRatio;
-      }
-
-      // Center the image on the page
-      const x = (pdfWidth - renderWidth) / 2;
-      const y = (pdfHeight - renderHeight) / 2;
-
-      doc.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight);
-      doc.save('building-plan.pdf');
+      exportToPdf(baseImageElement, overlays);
     }
   };
 
