@@ -199,3 +199,101 @@ export function findSnapPoint(
 
   return bestSnap;
 }
+
+import jsPDF from 'jspdf';
+import { Overlay } from '../types';
+
+export const exportToPdf = (
+  baseImageElement: HTMLImageElement,
+  overlays: Overlay[],
+) => {
+  const { naturalWidth: imgWidth, naturalHeight: imgHeight } = baseImageElement;
+  const isLandscape = imgWidth > imgHeight;
+  const orientation = isLandscape ? 'l' : 'p';
+
+  const canvas = document.createElement('canvas');
+  canvas.width = imgWidth;
+  canvas.height = imgHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(baseImageElement, 0, 0);
+
+  const imgData = canvas.toDataURL('image/png');
+
+  const doc = new jsPDF({
+    orientation,
+    unit: 'mm',
+    format: 'a0',
+  });
+
+  const pdfWidth = doc.internal.pageSize.getWidth();
+  const pdfHeight = doc.internal.pageSize.getHeight();
+
+  const imgAspectRatio = imgWidth / imgHeight;
+  const pdfAspectRatio = pdfWidth / pdfHeight;
+
+  let renderWidth, renderHeight;
+
+  if (imgAspectRatio > pdfAspectRatio) {
+    renderWidth = pdfWidth;
+    renderHeight = renderWidth / imgAspectRatio;
+  } else {
+    renderHeight = pdfHeight;
+    renderWidth = renderHeight * imgAspectRatio;
+  }
+
+  const x = (pdfWidth - renderWidth) / 2;
+  const y = (pdfHeight - renderHeight) / 2;
+
+  doc.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight);
+
+  const scale = renderWidth / imgWidth;
+  const pdfLineWidth = 0.5;
+  doc.setLineWidth(pdfLineWidth);
+  doc.setDrawColor(255, 0, 0);
+  doc.setFillColor(255, 0, 0);
+
+  overlays.forEach((overlay) => {
+    if (!overlay) return;
+
+    const transformX = (coord) => coord * scale + x;
+    const transformY = (coord) => coord * scale + y;
+
+    switch (overlay.type) {
+      case 'line':
+        doc.line(
+          transformX(overlay.start.x),
+          transformY(overlay.start.y),
+          transformX(overlay.end.x),
+          transformY(overlay.end.y),
+        );
+        break;
+      case 'rect':
+        const startX = transformX(
+          Math.min(overlay.start.x, overlay.end.x),
+        );
+        const startY = transformY(
+          Math.min(overlay.start.y, overlay.end.y),
+        );
+        const rectWidth = Math.abs(overlay.end.x - overlay.start.x) * scale;
+        const rectHeight =
+          Math.abs(overlay.end.y - overlay.start.y) * scale;
+        doc.rect(startX, startY, rectWidth, rectHeight, 'S');
+        break;
+      case 'dot':
+        const radius = 1;
+        doc.circle(
+          transformX(overlay.pos.x),
+          transformY(overlay.pos.y),
+          radius,
+          'F',
+        );
+        break;
+    }
+  });
+
+  doc.save('building-plan.pdf');
+};
