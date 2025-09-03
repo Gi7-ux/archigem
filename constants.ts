@@ -11,3 +11,6 @@ export const TOOLS = {
 } as const;
 
 export const SNAP_THRESHOLD = 10; // in pixels
+
+export const A0_WIDTH_PX = 9933;
+export const A0_HEIGHT_PX = 14043;
