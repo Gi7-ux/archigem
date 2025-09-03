@@ -2,10 +2,16 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import {SNAP_THRESHOLD, TOOLS} from '../constants';
+import jsPDF from 'jspdf';
+import {A0_HEIGHT_PX, A0_WIDTH_PX, SNAP_THRESHOLD, TOOLS} from '../constants';
 import {Overlay, Point} from '../types';
 
-export function parseError(error) {
+/**
+ * Parses an error message from a string.
+ * @param error The error string to parse.
+ * @returns The parsed error message or a default error message.
+ */
+export function parseError(error: string): string {
   if (typeof error !== 'string') return 'An unexpected error occurred.';
   const regex = /{"error":(.*)}/gm;
   const m = regex.exec(error);
@@ -19,10 +25,19 @@ export function parseError(error) {
   }
 }
 
+/**
+ * Draws overlays on a canvas.
+ * @param ctx The canvas rendering context.
+ * @param overlaysToDraw The overlays to draw.
+ * @param scale The scale at which to draw the overlays.
+ * @param offsetX The x-offset for drawing.
+ * @param offsetY The y-offset for drawing.
+ * @param forMask Whether the drawing is for a mask.
+ */
 export const drawOverlays = (
-  ctx,
-  overlaysToDraw,
-  scale,
+  ctx: CanvasRenderingContext2D,
+  overlaysToDraw: Overlay[],
+  scale: number,
   offsetX = 0,
   offsetY = 0,
   forMask = false,
@@ -42,8 +57,8 @@ export const drawOverlays = (
     if (!overlay) return;
     ctx.beginPath();
 
-    const transformX = (x) => x * scale + offsetX;
-    const transformY = (y) => y * scale + offsetY;
+    const transformX = (x: number) => x * scale + offsetX;
+    const transformY = (y: number) => y * scale + offsetY;
 
     switch (overlay.type) {
       case TOOLS.LINE:
@@ -58,7 +73,7 @@ export const drawOverlays = (
           const startY = transformY(overlay.start.y);
           const endX = transformX(overlay.end.x);
           const endY = transformY(overlay.end.y);
-          const rect = [
+          const rect: [number, number, number, number] = [
             Math.min(startX, endX),
             Math.min(startY, endY),
             Math.abs(endX - startX),
@@ -88,11 +103,20 @@ export const drawOverlays = (
 
 // --- Snapping Logic ---
 
-function getSnapGuides(overlays: Overlay[]) {
+/**
+ * Extracts snap guides (points and lines) from a list of overlays.
+ * @param overlays The overlays to extract guides from.
+ * @returns An object containing arrays of snap points and lines.
+ */
+function getSnapGuides(overlays: Overlay[]): {
+  points: Point[];
+  lines: {start: Point; end: Point}[];
+} {
   const points: Point[] = [];
   const lines: {start: Point; end: Point}[] = [];
 
   overlays.forEach((overlay) => {
+    if (!overlay) return;
     switch (overlay.type) {
       case TOOLS.LINE:
         points.push(overlay.start, overlay.end);
@@ -119,11 +143,24 @@ function getSnapGuides(overlays: Overlay[]) {
   return {points, lines};
 }
 
-function distance(p1: Point, p2: Point) {
+/**
+ * Calculates the Euclidean distance between two points.
+ * @param p1 The first point.
+ * @param p2 The second point.
+ * @returns The distance between the two points.
+ */
+function distance(p1: Point, p2: Point): number {
   return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 }
 
-function closestPointOnLineSegment(p: Point, a: Point, b: Point) {
+/**
+ * Finds the closest point on a line segment to a given point.
+ * @param p The point to find the closest point to.
+ * @param a The start point of the line segment.
+ * @param b The end point of the line segment.
+ * @returns The closest point on the line segment.
+ */
+function closestPointOnLineSegment(p: Point, a: Point, b: Point): Point {
   const ap = {x: p.x - a.x, y: p.y - a.y};
   const ab = {x: b.x - a.x, y: b.y - a.y};
   const ab2 = ab.x * ab.x + ab.y * ab.y;
@@ -137,12 +174,20 @@ function closestPointOnLineSegment(p: Point, a: Point, b: Point) {
   };
 }
 
+/**
+ * Finds the best snap point for a given point, considering existing overlays.
+ * @param currentPoint The point to snap.
+ * @param overlays The overlays to snap to.
+ * @param zoom The current zoom level.
+ * @param excludePoint A point to exclude from snapping.
+ * @returns An object containing the snapped point and other snap information.
+ */
 export function findSnapPoint(
   currentPoint: Point,
   overlays: Overlay[],
   zoom: number,
   excludePoint: Point | null = null,
-) {
+): {point: Point; distance: number; indicator: Point | null} {
   const worldThreshold = SNAP_THRESHOLD / zoom;
   const snapGuides = getSnapGuides(overlays);
 
@@ -200,14 +245,16 @@ export function findSnapPoint(
   return bestSnap;
 }
 
-import jsPDF from 'jspdf';
-import { Overlay } from '../types';
-
+/**
+ * Exports the canvas content with overlays to a PDF file.
+ * @param baseImageElement The base image element.
+ * @param overlays The overlays to draw on the PDF.
+ */
 export const exportToPdf = (
   baseImageElement: HTMLImageElement,
   overlays: Overlay[],
 ) => {
-  const { naturalWidth: imgWidth, naturalHeight: imgHeight } = baseImageElement;
+  const {naturalWidth: imgWidth, naturalHeight: imgHeight} = baseImageElement;
   const isLandscape = imgWidth > imgHeight;
   const orientation = isLandscape ? 'l' : 'p';
 
@@ -259,8 +306,8 @@ export const exportToPdf = (
   overlays.forEach((overlay) => {
     if (!overlay) return;
 
-    const transformX = (coord) => coord * scale + x;
-    const transformY = (coord) => coord * scale + y;
+    const transformX = (coord: number) => coord * scale + x;
+    const transformY = (coord: number) => coord * scale + y;
 
     switch (overlay.type) {
       case 'line':
@@ -272,15 +319,10 @@ export const exportToPdf = (
         );
         break;
       case 'rect':
-        const startX = transformX(
-          Math.min(overlay.start.x, overlay.end.x),
-        );
-        const startY = transformY(
-          Math.min(overlay.start.y, overlay.end.y),
-        );
+        const startX = transformX(Math.min(overlay.start.x, overlay.end.x));
+        const startY = transformY(Math.min(overlay.start.y, overlay.end.y));
         const rectWidth = Math.abs(overlay.end.x - overlay.start.x) * scale;
-        const rectHeight =
-          Math.abs(overlay.end.y - overlay.start.y) * scale;
+        const rectHeight = Math.abs(overlay.end.y - overlay.start.y) * scale;
         doc.rect(startX, startY, rectWidth, rectHeight, 'S');
         break;
       case 'dot':

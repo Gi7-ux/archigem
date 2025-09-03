@@ -3,17 +3,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import {GoogleGenAI, Modality} from '@google/genai';
+import {Overlay} from '../types';
 import {drawOverlays} from './utils';
 
 // Use the API key from environment variables as per guidelines
 const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
 
-export async function generateImageFromPlan(baseImageElement, overlays, prompt) {
+/**
+ * Generates an image from a base plan, overlays, and a prompt using the Gemini API.
+ * @param baseImageElement The base image element.
+ * @param overlays The overlays to apply to the image.
+ * @param prompt The prompt describing the desired changes.
+ * @returns A data URL for the generated image.
+ */
+export async function generateImageFromPlan(
+  baseImageElement: HTMLImageElement,
+  overlays: Overlay[],
+  prompt: string,
+): Promise<string> {
   // Create a canvas for the clean base image
   const baseCanvas = document.createElement('canvas');
   baseCanvas.width = baseImageElement.width;
   baseCanvas.height = baseImageElement.height;
   const baseCtx = baseCanvas.getContext('2d');
+  if (!baseCtx) {
+    throw new Error('Could not get canvas context for base image.');
+  }
   baseCtx.drawImage(baseImageElement, 0, 0);
   const baseImageData = baseCanvas.toDataURL('image/png').split(',')[1];
 
@@ -22,6 +37,9 @@ export async function generateImageFromPlan(baseImageElement, overlays, prompt) 
   compositeCanvas.width = baseImageElement.width;
   compositeCanvas.height = baseImageElement.height;
   const compositeCtx = compositeCanvas.getContext('2d');
+  if (!compositeCtx) {
+    throw new Error('Could not get canvas context for composite image.');
+  }
   compositeCtx.drawImage(baseImageElement, 0, 0);
   drawOverlays(compositeCtx, overlays, 1);
   const compositeImageData = compositeCanvas
@@ -33,12 +51,15 @@ export async function generateImageFromPlan(baseImageElement, overlays, prompt) 
   maskCanvas.width = baseImageElement.width;
   maskCanvas.height = baseImageElement.height;
   const maskCtx = maskCanvas.getContext('2d');
+  if (!maskCtx) {
+    throw new Error('Could not get canvas context for mask.');
+  }
   maskCtx.fillStyle = 'black';
   maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
   drawOverlays(maskCtx, overlays, 1, 0, 0, true); // Draw white-filled overlays for the mask
   const maskImageData = maskCanvas.toDataURL('image/png').split(',')[1];
 
-  const model = 'gemini-2.5-flash-image-preview';
+  const model = 'gemini-1.5-flash-preview-0514';
 
   const contents = {
     parts: [

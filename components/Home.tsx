@@ -2,8 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import jsPDF from 'jspdf';
-import {useRef, useState} from 'react';
+import {ChangeEvent, FormEvent, useRef, useState} from 'react';
 import {A0_HEIGHT_PX, A0_WIDTH_PX} from '../constants';
 import {useCanvas} from '../hooks/useCanvas';
 import {generateImageFromPlan} from '../lib/gemini';
@@ -13,13 +12,19 @@ import {ErrorModal} from './ErrorModal';
 import {PromptForm} from './PromptForm';
 import {Toolbar} from './Toolbar';
 
+/**
+ * The main component for the application.
+ * It orchestrates the canvas, toolbar, and prompt form.
+ * @returns The main application component.
+ */
 export default function Home() {
-  const canvasRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [prompt, setPrompt] = useState('');
-  const [baseImage, setBaseImage] = useState(null);
-  const [baseImageElement, setBaseImageElement] = useState(null);
+  const [baseImage, setBaseImage] = useState<string | null>(null);
+  const [baseImageElement, setBaseImageElement] =
+    useState<HTMLImageElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -28,7 +33,6 @@ export default function Home() {
     activeTool,
     setActiveTool,
     overlays,
-    setOverlays,
     history,
     historyIndex,
     panOffset,
@@ -44,8 +48,12 @@ export default function Home() {
     resetCanvasState,
   } = useCanvas(canvasRef);
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
+  /**
+   * Handles the upload of a new image.
+   * @param e The change event from the file input.
+   */
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -55,13 +63,17 @@ export default function Home() {
           resetCanvasState();
         };
         img.src = reader.result as string;
-        setBaseImage(reader.result);
+        setBaseImage(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = async (e) => {
+  /**
+   * Handles the submission of the prompt to generate a new image.
+   * @param e The form event.
+   */
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!baseImageElement || !prompt.trim()) return;
 
@@ -82,7 +94,7 @@ export default function Home() {
         clearOverlays(true); // Clear overlays for the new image
       };
       img.src = newImageDataUrl;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting drawing:', error);
       setErrorMessage(error.message || 'An unexpected error occurred.');
       setShowErrorModal(true);
@@ -91,7 +103,11 @@ export default function Home() {
     }
   };
 
-  const createAndDownloadImage = (format) => {
+  /**
+   * Creates and downloads the current image as a PNG or PDF.
+   * @param format The format to download ('png' or 'pdf').
+   */
+  const createAndDownloadImage = (format: 'png' | 'pdf') => {
     if (!baseImageElement) return;
 
     const {naturalWidth: imgWidth, naturalHeight: imgHeight} = baseImageElement;
