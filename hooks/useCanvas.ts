@@ -2,44 +2,65 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import {useCallback, useRef, useState} from 'react';
+import {RefObject, useCallback, useRef, useState} from 'react';
 import {TOOLS} from '../constants';
 import {findSnapPoint} from '../lib/utils';
-import {Point, Tool} from '../types';
+import {Overlay, Point, Tool} from '../types';
 
-export const useCanvas = (canvasRef) => {
+/**
+ * Custom hook for managing canvas interactions, including drawing, panning, zooming, and history.
+ * @param canvasRef A React ref to the canvas element.
+ * @returns An object containing canvas state and handlers.
+ */
+export const useCanvas = (canvasRef: RefObject<HTMLCanvasElement>) => {
   const isInteractingRef = useRef(false);
-  const startPointRef = useRef({x: 0, y: 0});
+  const startPointRef = useRef<Point>({x: 0, y: 0});
 
   const [activeTool, setActiveTool] = useState<Tool>(TOOLS.PAN);
-  const [overlays, setOverlays] = useState([]);
-  const [history, setHistory] = useState([[]]);
+  const [overlays, setOverlays] = useState<Overlay[]>([]);
+  const [history, setHistory] = useState<Overlay[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
-  const [panOffset, setPanOffset] = useState({x: 0, y: 0});
-  const [currentDrawing, setCurrentDrawing] = useState(null);
+  const [panOffset, setPanOffset] = useState<Point>({x: 0, y: 0});
+  const [currentDrawing, setCurrentDrawing] = useState<Overlay | null>(null);
   const [snapIndicator, setSnapIndicator] = useState<Point | null>(null);
 
-  const recordHistory = (newOverlays) => {
+  /**
+   * Records a new state of overlays in the history.
+   * @param newOverlays The new array of overlays to record.
+   */
+  const recordHistory = (newOverlays: Overlay[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push(newOverlays);
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
   };
 
-  const getCanvasCoordinates = (e) => {
+  /**
+   * Gets the canvas coordinates from a mouse or touch event.
+   * @param e The mouse or touch event.
+   * @returns The coordinates on the canvas.
+   */
+  const getCanvasCoordinates = (
+    e: MouseEvent | TouchEvent,
+  ): {x: number; y: number} => {
     const canvas = canvasRef.current;
     if (!canvas) return {x: 0, y: 0};
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     return {
       x: clientX - rect.left,
       y: clientY - rect.top,
     };
   };
 
-  const screenToWorld = (screenCoords) => {
+  /**
+   * Converts screen coordinates to world coordinates (accounting for pan and zoom).
+   * @param screenCoords The screen coordinates.
+   * @returns The world coordinates.
+   */
+  const screenToWorld = (screenCoords: Point): Point => {
     const canvas = canvasRef.current;
     if (!canvas) return screenCoords;
     const rect = canvas.getBoundingClientRect();
@@ -51,7 +72,11 @@ export const useCanvas = (canvasRef) => {
     };
   };
 
-  const handleMouseDown = (e) => {
+  /**
+   * Handles the mouse down event on the canvas.
+   * @param e The React mouse event.
+   */
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     isInteractingRef.current = true;
     const screenCoords = getCanvasCoordinates(e.nativeEvent);
     let worldCoords = screenToWorld(screenCoords);
@@ -76,7 +101,11 @@ export const useCanvas = (canvasRef) => {
     }
   };
 
-  const handleMouseMove = (e) => {
+  /**
+   * Handles the mouse move event on the canvas.
+   * @param e The React mouse event.
+   */
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isInteractingRef.current) return;
     const screenCoords = getCanvasCoordinates(e.nativeEvent);
 
@@ -94,7 +123,7 @@ export const useCanvas = (canvasRef) => {
       worldCoords = snapResult.point;
       setSnapIndicator(snapResult.indicator);
 
-      let shape = null;
+      let shape: Overlay | null = null;
       if (activeTool === TOOLS.LINE) {
         shape = {type: TOOLS.LINE, start, end: worldCoords};
       } else if (activeTool === TOOLS.RECT) {
@@ -104,6 +133,9 @@ export const useCanvas = (canvasRef) => {
     }
   };
 
+  /**
+   * Handles the mouse up event on the canvas.
+   */
   const handleMouseUp = () => {
     if (isInteractingRef.current && currentDrawing) {
       const newOverlays = [...overlays, currentDrawing];
@@ -115,18 +147,29 @@ export const useCanvas = (canvasRef) => {
     setSnapIndicator(null); // Clear indicator on mouse up
   };
 
-  const handleZoom = useCallback((delta) => {
+  /**
+   * Handles zooming the canvas.
+   * @param delta The change in zoom level.
+   */
+  const handleZoom = useCallback((delta: number) => {
     setZoom((prevZoom) => Math.max(0.1, Math.min(prevZoom + delta, 10)));
   }, []);
 
+  /**
+   * Handles the wheel event for zooming.
+   * @param e The React wheel event.
+   */
   const handleWheel = useCallback(
-    (e) => {
+    (e: React.WheelEvent<HTMLCanvasElement>) => {
       e.preventDefault();
       handleZoom(e.deltaY * -0.01);
     },
     [handleZoom],
   );
 
+  /**
+   * Undoes the last action.
+   */
   const undo = () => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
@@ -135,6 +178,9 @@ export const useCanvas = (canvasRef) => {
     }
   };
 
+  /**
+   * Redoes the last undone action.
+   */
   const redo = () => {
     if (historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
@@ -143,10 +189,21 @@ export const useCanvas = (canvasRef) => {
     }
   };
 
+  /**
+   * Zooms in the canvas.
+   */
   const zoomIn = () => handleZoom(0.2);
+
+  /**
+   * Zooms out the canvas.
+   */
   const zoomOut = () => handleZoom(-0.2);
 
-  const clearOverlays = (isNewImage) => {
+  /**
+   * Clears all overlays from the canvas.
+   * @param isNewImage If true, also resets the history.
+   */
+  const clearOverlays = (isNewImage: boolean) => {
     setOverlays([]);
     if (isNewImage) {
       setHistory([[]]);
@@ -156,6 +213,9 @@ export const useCanvas = (canvasRef) => {
     }
   };
 
+  /**
+   * Resets the entire canvas state (overlays, history, zoom, pan).
+   */
   const resetCanvasState = () => {
     setOverlays([]);
     setHistory([[]]);

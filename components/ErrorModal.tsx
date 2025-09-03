@@ -5,7 +5,21 @@
 import {X} from 'lucide-react';
 import {parseError} from '../lib/utils';
 
-export function ErrorModal({show, message, onClose}) {
+/**
+ * Props for the ErrorModal component.
+ */
+interface ErrorModalProps {
+  show: boolean;
+  message: string;
+  onClose: () => void;
+}
+
+/**
+ * A modal dialog to display an error message.
+ * @param props The props for the component.
+ * @returns The error modal component.
+ */
+export function ErrorModal({show, message, onClose}: ErrorModalProps) {
   if (!show) return null;
 
   return (

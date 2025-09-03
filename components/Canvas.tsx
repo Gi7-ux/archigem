@@ -3,10 +3,37 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import {Upload} from 'lucide-react';
-import {useEffect} from 'react';
+import {RefObject, useEffect} from 'react';
 import {TOOLS} from '../constants';
 import {drawOverlays} from '../lib/utils';
+import {Overlay, Point, Tool} from '../types';
 
+/**
+ * Props for the Canvas component.
+ */
+interface CanvasProps {
+  canvasRef: RefObject<HTMLCanvasElement>;
+  baseImage: string | null;
+  baseImageElement: HTMLImageElement | null;
+  activeTool: Tool;
+  overlays: Overlay[];
+  panOffset: Point;
+  zoom: number;
+  currentDrawing: Overlay | null;
+  snapIndicator: Point | null;
+  canvasHandlers: {
+    handleMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
+    handleMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
+    handleMouseUp: () => void;
+    handleWheel: (e: React.WheelEvent<HTMLCanvasElement>) => void;
+  };
+}
+
+/**
+ * The main canvas component for drawing and interaction.
+ * @param props The props for the component.
+ * @returns The canvas element or an upload prompt.
+ */
 export function Canvas({
   canvasRef,
   baseImage,
@@ -18,11 +45,12 @@ export function Canvas({
   currentDrawing,
   snapIndicator,
   canvasHandlers,
-}) {
+}: CanvasProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -36,9 +64,9 @@ export function Canvas({
     }
 
     // Draw committed overlays and current drawing for live preview
-    drawOverlays(ctx, overlays, zoom);
+    drawOverlays(ctx, overlays, 1);
     if (currentDrawing) {
-      drawOverlays(ctx, [currentDrawing], zoom);
+      drawOverlays(ctx, [currentDrawing], 1);
     }
 
     // Draw snap indicator
