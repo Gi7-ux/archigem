@@ -25,17 +25,23 @@ export const drawOverlays = (
   scale,
   offsetX = 0,
   offsetY = 0,
+  forMask = false,
 ) => {
-  ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
-  ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
-  // Adjust line width based on the export scale, not canvas zoom
-  ctx.lineWidth = 5 * Math.max(1, scale / 5);
+  if (forMask) {
+    ctx.strokeStyle = 'white';
+    ctx.fillStyle = 'white';
+    // For masks, we want thicker lines to ensure the area is fully covered
+    ctx.lineWidth = 20 * Math.max(1, scale / 5);
+  } else {
+    ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
+    ctx.lineWidth = 5 * Math.max(1, scale / 5);
+  }
 
   overlaysToDraw.forEach((overlay) => {
     if (!overlay) return;
     ctx.beginPath();
 
-    // Scale and translate coordinates
     const transformX = (x) => x * scale + offsetX;
     const transformY = (y) => y * scale + offsetY;
 
@@ -43,6 +49,7 @@ export const drawOverlays = (
       case TOOLS.LINE:
         ctx.moveTo(transformX(overlay.start.x), transformY(overlay.start.y));
         ctx.lineTo(transformX(overlay.end.x), transformY(overlay.end.y));
+        // For masks, we stroke with a thick line to create a filled area
         ctx.stroke();
         break;
       case TOOLS.RECT:
@@ -51,20 +58,25 @@ export const drawOverlays = (
           const startY = transformY(overlay.start.y);
           const endX = transformX(overlay.end.x);
           const endY = transformY(overlay.end.y);
-          ctx.strokeRect(
+          const rect = [
             Math.min(startX, endX),
             Math.min(startY, endY),
             Math.abs(endX - startX),
             Math.abs(endY - startY),
-          );
+          ];
+          if (forMask) {
+            ctx.fillRect(rect[0], rect[1], rect[2], rect[3]);
+          } else {
+            ctx.strokeRect(rect[0], rect[1], rect[2], rect[3]);
+          }
         }
         break;
       case TOOLS.DOT:
-        // Adjust dot radius based on the export scale
         ctx.arc(
           transformX(overlay.pos.x),
           transformY(overlay.pos.y),
-          10 * Math.max(1, scale / 5),
+          // Use a larger radius for the mask
+          (forMask ? 20 : 10) * Math.max(1, scale / 5),
           0,
           2 * Math.PI,
         );
