@@ -1,33 +1,25 @@
-import {MouseEventHandler, ReactNode} from 'react';
-
 /**
- * Props for the ToolButton component.
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
  */
+import React from 'react';
+
 interface ToolButtonProps {
-  onClick: MouseEventHandler<HTMLButtonElement>;
-  isActive?: boolean;
+  onClick: () => void;
+  isActive: boolean;
   label: string;
-  children: ReactNode;
-  disabled?: boolean;
+  children: React.ReactNode;
 }
-
-/**
- * A button for a tool in the toolbar.
- * @param props The props for the component.
- * @returns The tool button component.
- */
 export const ToolButton = ({
   onClick,
   isActive,
   label,
   children,
-  disabled,
 }: ToolButtonProps) => (
   <button
     type="button"
-    disabled={disabled}
     onClick={onClick}
-    className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-all hover:bg-gray-100 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
+    className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-all hover:bg-gray-100 hover:scale-110 ${
       isActive ? 'bg-blue-100 text-blue-600' : 'bg-white'
     }`}
     aria-label={label}

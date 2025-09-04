@@ -5,20 +5,12 @@
 import {X} from 'lucide-react';
 import {parseError} from '../lib/utils';
 
-/**
- * Props for the ErrorModal component.
- */
 interface ErrorModalProps {
   show: boolean;
   message: string;
   onClose: () => void;
 }
 
-/**
- * A modal dialog to display an error message.
- * @param props The props for the component.
- * @returns The error modal component.
- */
 export function ErrorModal({show, message, onClose}: ErrorModalProps) {
   if (!show) return null;
 
@@ -27,7 +19,10 @@ export function ErrorModal({show, message, onClose}: ErrorModalProps) {
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-bold text-red-600">Generation Failed</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500"
+            aria-label="Close error modal">
             <X className="w-5 h-5" />
           </button>
         </div>

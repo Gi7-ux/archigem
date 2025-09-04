@@ -3,24 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import {LoaderCircle, SendHorizontal} from 'lucide-react';
-import {Dispatch, FormEvent, SetStateAction} from 'react';
 
-/**
- * Props for the PromptForm component.
- */
 interface PromptFormProps {
   prompt: string;
-  setPrompt: Dispatch<SetStateAction<string>>;
-  handleSubmit: (e: FormEvent) => void;
+  setPrompt: (prompt: string) => void;
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
   baseImage: string | null;
 }
 
-/**
- * A form for submitting prompts to the AI model.
- * @param props The props for the component.
- * @returns The prompt form component.
- */
 export function PromptForm({
   prompt,
   setPrompt,

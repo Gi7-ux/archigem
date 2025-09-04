@@ -15,27 +15,16 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import {
-  ChangeEvent,
-  Dispatch,
-  RefObject,
-  SetStateAction,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {TOOLS} from '../constants';
 import {Tool} from '../types';
 import {ToolButton} from './ToolButton';
 
-/**
- * Props for the Toolbar component.
- */
 interface ToolbarProps {
-  fileInputRef: RefObject<HTMLInputElement>;
-  handleImageUpload: (e: ChangeEvent<HTMLInputElement>) => void;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   activeTool: Tool;
-  setActiveTool: Dispatch<SetStateAction<Tool>>;
+  setActiveTool: (tool: Tool) => void;
   handleUndo: () => void;
   canUndo: boolean;
   handleRedo: () => void;
@@ -47,12 +36,6 @@ interface ToolbarProps {
   handleDownloadPNG: () => void;
   handleDownloadPDF: () => void;
 }
-
-/**
- * The main toolbar component with tools and actions.
- * @param props The props for the component.
- * @returns The toolbar component.
- */
 export function Toolbar({
   fileInputRef,
   handleImageUpload,
@@ -119,68 +102,79 @@ export function Toolbar({
           <ToolButton
             onClick={() => setActiveTool(TOOLS.PAN)}
             isActive={activeTool === TOOLS.PAN}
-            label="Pan Tool"
-            disabled={!baseImage}>
+            label="Pan Tool">
             <Hand className="w-5 h-5" />
           </ToolButton>
           <ToolButton
             onClick={() => setActiveTool(TOOLS.LINE)}
             isActive={activeTool === TOOLS.LINE}
-            label="Line Tool"
-            disabled={!baseImage}>
+            label="Line Tool">
             <Minus className="w-5 h-5" />
           </ToolButton>
           <ToolButton
             onClick={() => setActiveTool(TOOLS.RECT)}
             isActive={activeTool === TOOLS.RECT}
-            label="Rectangle Tool"
-            disabled={!baseImage}>
+            label="Rectangle Tool">
             <Square className="w-5 h-5" />
           </ToolButton>
           <ToolButton
             onClick={() => setActiveTool(TOOLS.DOT)}
             isActive={activeTool === TOOLS.DOT}
-            label="Marker Tool"
-            disabled={!baseImage}>
+            label="Marker Tool">
             <CircleDot className="w-5 h-5" />
           </ToolButton>
         </div>
         <div className="flex items-center gap-1 bg-white/50 rounded-full p-1">
-          <ToolButton onClick={handleUndo} disabled={!canUndo} label="Undo">
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={!canUndo}
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-white disabled:opacity-50 hover:bg-gray-100"
+            title="Undo">
             <Undo className="w-5 h-5" />
-          </ToolButton>
-          <ToolButton onClick={handleRedo} disabled={!canRedo} label="Redo">
+          </button>
+          <button
+            type="button"
+            onClick={handleRedo}
+            disabled={!canRedo}
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-white disabled:opacity-50 hover:bg-gray-100"
+            title="Redo">
             <Redo className="w-5 h-5" />
-          </ToolButton>
+          </button>
         </div>
         <div className="flex items-center gap-1 bg-white/50 rounded-full p-1">
-          <ToolButton
+          <button
+            type="button"
             onClick={handleZoomIn}
-            disabled={!baseImage}
-            label="Zoom In">
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-white hover:bg-gray-100"
+            title="Zoom In">
             <ZoomIn className="w-5 h-5" />
-          </ToolButton>
-          <ToolButton
+          </button>
+          <button
+            type="button"
             onClick={handleZoomOut}
-            disabled={!baseImage}
-            label="Zoom Out">
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-white hover:bg-gray-100"
+            title="Zoom Out">
             <ZoomOut className="w-5 h-5" />
-          </ToolButton>
+          </button>
         </div>
-        <ToolButton
+        <button
+          type="button"
           onClick={clearOverlays}
-          disabled={!baseImage}
-          label="Clear Markings">
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm transition-all hover:bg-gray-100 hover:scale-110"
+          title="Clear Markings">
           <Trash2 className="w-5 h-5 text-gray-700" />
-        </ToolButton>
+        </button>
 
         <div className="relative" ref={downloadMenuRef}>
-          <ToolButton
+          <button
+            type="button"
             onClick={() => setShowDownloadMenu(!showDownloadMenu)}
             disabled={!baseImage}
-            label="Download">
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm transition-all hover:bg-gray-100 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Download">
             <Download className="w-5 h-5 text-gray-700" />
-          </ToolButton>
+          </button>
           {showDownloadMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 py-1">
               <button

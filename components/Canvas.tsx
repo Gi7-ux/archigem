@@ -3,16 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import {Upload} from 'lucide-react';
-import {RefObject, useEffect} from 'react';
+import {useEffect} from 'react';
 import {TOOLS} from '../constants';
 import {drawOverlays} from '../lib/utils';
 import {Overlay, Point, Tool} from '../types';
 
-/**
- * Props for the Canvas component.
- */
 interface CanvasProps {
-  canvasRef: RefObject<HTMLCanvasElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
   baseImage: string | null;
   baseImageElement: HTMLImageElement | null;
   activeTool: Tool;
@@ -29,11 +26,6 @@ interface CanvasProps {
   };
 }
 
-/**
- * The main canvas component for drawing and interaction.
- * @param props The props for the component.
- * @returns The canvas element or an upload prompt.
- */
 export function Canvas({
   canvasRef,
   baseImage,
@@ -64,9 +56,9 @@ export function Canvas({
     }
 
     // Draw committed overlays and current drawing for live preview
-    drawOverlays(ctx, overlays, 1);
+    drawOverlays(ctx, overlays, zoom);
     if (currentDrawing) {
-      drawOverlays(ctx, [currentDrawing], 1);
+      drawOverlays(ctx, [currentDrawing], zoom);
     }
 
     // Draw snap indicator

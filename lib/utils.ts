@@ -2,99 +2,52 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import jsPDF from 'jspdf';
-import {A0_HEIGHT_PX, A0_WIDTH_PX, SNAP_THRESHOLD, TOOLS} from '../constants';
+import {SNAP_THRESHOLD, TOOLS} from '../constants';
 import {Overlay, Point} from '../types';
 
-/**
- * Parses an error message from a string.
- * @param error The error string to parse.
- * @returns The parsed error message or a default error message.
- */
 export function parseError(error: string): string {
   if (typeof error !== 'string') return 'An unexpected error occurred.';
-  const regex = /{"error":(.*)}/gm;
-  const m = regex.exec(error);
   try {
-    if (!m) return error;
-    const e = m[1];
-    const err = JSON.parse(e);
-    return err.message || error;
+    // Attempt to find and parse a JSON object within the error string
+    const match = error.match(/{.+}/s);
+    if (match) {
+      const errorJson = JSON.parse(match[0]);
+      return errorJson?.error?.message || errorJson?.message || error;
+    }
   } catch (e) {
-    return error;
+    // Fallback to original error if parsing fails
   }
+  return error;
 }
 
-/**
- * Draws overlays on a canvas.
- * @param ctx The canvas rendering context.
- * @param overlaysToDraw The overlays to draw.
- * @param scale The scale at which to draw the overlays.
- * @param offsetX The x-offset for drawing.
- * @param offsetY The y-offset for drawing.
- * @param forMask Whether the drawing is for a mask.
- */
 export const drawOverlays = (
   ctx: CanvasRenderingContext2D,
-  overlaysToDraw: Overlay[],
-  scale: number,
-  offsetX = 0,
-  offsetY = 0,
-  forMask = false,
+  overlaysToDraw: (Overlay | null)[],
+  zoom: number,
 ) => {
-  if (forMask) {
-    ctx.strokeStyle = 'white';
-    ctx.fillStyle = 'white';
-    // For masks, we want thicker lines to ensure the area is fully covered
-    ctx.lineWidth = 20 * Math.max(1, scale / 5);
-  } else {
-    ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
-    ctx.lineWidth = 5 * Math.max(1, scale / 5);
-  }
+  ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+  ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
+  ctx.lineWidth = 5 / zoom; // Keep line width consistent when zooming
 
   overlaysToDraw.forEach((overlay) => {
     if (!overlay) return;
     ctx.beginPath();
-
-    const transformX = (x: number) => x * scale + offsetX;
-    const transformY = (y: number) => y * scale + offsetY;
-
     switch (overlay.type) {
       case TOOLS.LINE:
-        ctx.moveTo(transformX(overlay.start.x), transformY(overlay.start.y));
-        ctx.lineTo(transformX(overlay.end.x), transformY(overlay.end.y));
-        // For masks, we stroke with a thick line to create a filled area
+        ctx.moveTo(overlay.start.x, overlay.start.y);
+        ctx.lineTo(overlay.end.x, overlay.end.y);
         ctx.stroke();
         break;
       case TOOLS.RECT:
-        {
-          const startX = transformX(overlay.start.x);
-          const startY = transformY(overlay.start.y);
-          const endX = transformX(overlay.end.x);
-          const endY = transformY(overlay.end.y);
-          const rect: [number, number, number, number] = [
-            Math.min(startX, endX),
-            Math.min(startY, endY),
-            Math.abs(endX - startX),
-            Math.abs(endY - startY),
-          ];
-          if (forMask) {
-            ctx.fillRect(rect[0], rect[1], rect[2], rect[3]);
-          } else {
-            ctx.strokeRect(rect[0], rect[1], rect[2], rect[3]);
-          }
-        }
+        ctx.strokeRect(
+          Math.min(overlay.start.x, overlay.end.x),
+          Math.min(overlay.start.y, overlay.end.y),
+          Math.abs(overlay.end.x - overlay.start.x),
+          Math.abs(overlay.end.y - overlay.start.y),
+        );
         break;
       case TOOLS.DOT:
-        ctx.arc(
-          transformX(overlay.pos.x),
-          transformY(overlay.pos.y),
-          // Use a larger radius for the mask
-          (forMask ? 20 : 10) * Math.max(1, scale / 5),
-          0,
-          2 * Math.PI,
-        );
+        ctx.arc(overlay.pos.x, overlay.pos.y, 10 / zoom, 0, 2 * Math.PI);
         ctx.fill();
         break;
     }
@@ -103,20 +56,11 @@ export const drawOverlays = (
 
 // --- Snapping Logic ---
 
-/**
- * Extracts snap guides (points and lines) from a list of overlays.
- * @param overlays The overlays to extract guides from.
- * @returns An object containing arrays of snap points and lines.
- */
-function getSnapGuides(overlays: Overlay[]): {
-  points: Point[];
-  lines: {start: Point; end: Point}[];
-} {
+function getSnapGuides(overlays: Overlay[]) {
   const points: Point[] = [];
   const lines: {start: Point; end: Point}[] = [];
 
   overlays.forEach((overlay) => {
-    if (!overlay) return;
     switch (overlay.type) {
       case TOOLS.LINE:
         points.push(overlay.start, overlay.end);
@@ -143,23 +87,10 @@ function getSnapGuides(overlays: Overlay[]): {
   return {points, lines};
 }
 
-/**
- * Calculates the Euclidean distance between two points.
- * @param p1 The first point.
- * @param p2 The second point.
- * @returns The distance between the two points.
- */
-function distance(p1: Point, p2: Point): number {
+function distance(p1: Point, p2: Point) {
   return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 }
 
-/**
- * Finds the closest point on a line segment to a given point.
- * @param p The point to find the closest point to.
- * @param a The start point of the line segment.
- * @param b The end point of the line segment.
- * @returns The closest point on the line segment.
- */
 function closestPointOnLineSegment(p: Point, a: Point, b: Point): Point {
   const ap = {x: p.x - a.x, y: p.y - a.y};
   const ab = {x: b.x - a.x, y: b.y - a.y};
@@ -174,24 +105,20 @@ function closestPointOnLineSegment(p: Point, a: Point, b: Point): Point {
   };
 }
 
-/**
- * Finds the best snap point for a given point, considering existing overlays.
- * @param currentPoint The point to snap.
- * @param overlays The overlays to snap to.
- * @param zoom The current zoom level.
- * @param excludePoint A point to exclude from snapping.
- * @returns An object containing the snapped point and other snap information.
- */
 export function findSnapPoint(
   currentPoint: Point,
   overlays: Overlay[],
   zoom: number,
   excludePoint: Point | null = null,
-): {point: Point; distance: number; indicator: Point | null} {
+) {
   const worldThreshold = SNAP_THRESHOLD / zoom;
   const snapGuides = getSnapGuides(overlays);
 
-  let bestSnap = {
+  let bestSnap: {
+    point: Point;
+    distance: number;
+    indicator: Point | null;
+  } = {
     point: currentPoint,
     distance: Infinity,
     indicator: null as Point | null,
@@ -244,98 +171,3 @@ export function findSnapPoint(
 
   return bestSnap;
 }
-
-/**
- * Exports the canvas content with overlays to a PDF file.
- * @param baseImageElement The base image element.
- * @param overlays The overlays to draw on the PDF.
- */
-export const exportToPdf = (
-  baseImageElement: HTMLImageElement,
-  overlays: Overlay[],
-) => {
-  const {naturalWidth: imgWidth, naturalHeight: imgHeight} = baseImageElement;
-  const isLandscape = imgWidth > imgHeight;
-  const orientation = isLandscape ? 'l' : 'p';
-
-  const canvas = document.createElement('canvas');
-  canvas.width = imgWidth;
-  canvas.height = imgHeight;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(baseImageElement, 0, 0);
-
-  const imgData = canvas.toDataURL('image/png');
-
-  const doc = new jsPDF({
-    orientation,
-    unit: 'mm',
-    format: 'a0',
-  });
-
-  const pdfWidth = doc.internal.pageSize.getWidth();
-  const pdfHeight = doc.internal.pageSize.getHeight();
-
-  const imgAspectRatio = imgWidth / imgHeight;
-  const pdfAspectRatio = pdfWidth / pdfHeight;
-
-  let renderWidth, renderHeight;
-
-  if (imgAspectRatio > pdfAspectRatio) {
-    renderWidth = pdfWidth;
-    renderHeight = renderWidth / imgAspectRatio;
-  } else {
-    renderHeight = pdfHeight;
-    renderWidth = renderHeight * imgAspectRatio;
-  }
-
-  const x = (pdfWidth - renderWidth) / 2;
-  const y = (pdfHeight - renderHeight) / 2;
-
-  doc.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight);
-
-  const scale = renderWidth / imgWidth;
-  const pdfLineWidth = 0.5;
-  doc.setLineWidth(pdfLineWidth);
-  doc.setDrawColor(255, 0, 0);
-  doc.setFillColor(255, 0, 0);
-
-  overlays.forEach((overlay) => {
-    if (!overlay) return;
-
-    const transformX = (coord: number) => coord * scale + x;
-    const transformY = (coord: number) => coord * scale + y;
-
-    switch (overlay.type) {
-      case 'line':
-        doc.line(
-          transformX(overlay.start.x),
-          transformY(overlay.start.y),
-          transformX(overlay.end.x),
-          transformY(overlay.end.y),
-        );
-        break;
-      case 'rect':
-        const startX = transformX(Math.min(overlay.start.x, overlay.end.x));
-        const startY = transformY(Math.min(overlay.start.y, overlay.end.y));
-        const rectWidth = Math.abs(overlay.end.x - overlay.start.x) * scale;
-        const rectHeight = Math.abs(overlay.end.y - overlay.start.y) * scale;
-        doc.rect(startX, startY, rectWidth, rectHeight, 'S');
-        break;
-      case 'dot':
-        const radius = 1;
-        doc.circle(
-          transformX(overlay.pos.x),
-          transformY(overlay.pos.y),
-          radius,
-          'F',
-        );
-        break;
-    }
-  });
-
-  doc.save('building-plan.pdf');
-};
